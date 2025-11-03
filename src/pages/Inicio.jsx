@@ -105,7 +105,7 @@ function Inicio() {
   
   return (
     <div>
-      <h1>Dashboard de Almacén</h1>
+      <h1>Dashboard</h1>
       <p>Resumen rápido de las cuentas a pagar a proveedores.</p>
 
       <div style={{display: 'flex', flexWrap: 'wrap', gap: '2rem'}}>
