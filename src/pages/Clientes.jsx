@@ -160,13 +160,23 @@ function Clientes() {
     handleCerrarModales();
   };
 
-  // --- Función de Exportación (sin cambios) ---
+  // --- MODIFICADO: Función de Exportación con fechas corregidas ---
   const handleExportarDeudas = () => {
+    // Función helper para formatear fecha como string dd/mm/yyyy
+    const formatearFecha = (fechaString) => {
+      if (!fechaString) return '';
+      const fecha = new Date(fechaString + 'T00:00:00');
+      const dia = String(fecha.getDate()).padStart(2, '0');
+      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+      const anio = fecha.getFullYear();
+      return `${dia}/${mes}/${anio}`;
+    };
+
     const dataParaExportar = deudas.map(deuda => {
       const cliente = clientes.find(c => c.id === deuda.clienteId);
       return {
         CLIENTE: cliente ? cliente.nombre : 'Cliente Desconocido',
-        FECHA: new Date(deuda.fecha), // Usamos Objeto Date para que Excel lo formatee
+        FECHA: formatearFecha(deuda.fecha), // <-- MODIFICADO: Usamos string en lugar de Date
         MONTO: deuda.monto
       };
     });
@@ -303,7 +313,7 @@ function Clientes() {
                   .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
                   .map(deuda => (
                     <tr key={deuda.id}>
-                      <td>{new Date(deuda.fecha).toLocaleDateString('es-AR')}</td>
+                      <td>{new Date(deuda.fecha + 'T00:00:00').toLocaleDateString('es-AR')}</td>
                       <td>${deuda.monto.toLocaleString('es-AR')}</td>
                       {/* <-- NUEVO: Botones de Editar y Eliminar Deuda --> */}
                       <td style={{display: 'flex', gap: '0.5rem'}}>
