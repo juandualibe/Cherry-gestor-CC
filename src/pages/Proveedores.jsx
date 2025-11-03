@@ -14,6 +14,18 @@ const guardarDatos = (key, datos) => {
 };
 // ----------------------------------------------------
 
+// <-- ¡NUEVO! Función de ayuda para sumar días -->
+const sumarDias = (fechaString, dias) => {
+  try {
+    const fecha = new Date(fechaString + 'T00:00:00'); // Forzar zona horaria local
+    fecha.setDate(fecha.getDate() + dias);
+    return fecha.toISOString().split('T')[0];
+  } catch (e) {
+    return ''; 
+  }
+};
+
+
 function Proveedores() {
   // Estados de siempre
   const [proveedores, setProveedores] = useState(() => cargarDatos('proveedores'));
@@ -30,11 +42,12 @@ function Proveedores() {
   const [montoNuevoPago, setMontoNuevoPago] = useState('');
   const [fechaNuevoPago, setFechaNuevoPago] = useState(new Date().toISOString().split('T')[0]);
 
+  // <-- ¡NUEVO! Estado para la fecha de vencimiento -->
+  const [fechaVencimientoNuevaFactura, setFechaVencimientoNuevaFactura] = useState(() => sumarDias(new Date().toISOString().split('T')[0], 7));
+
   // Estados para los modales de edición
   const [modalFacturaAbierto, setModalFacturaAbierto] = useState(false);
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
-  
-  // Estado para guardar el item que estamos editando
   const [itemEditando, setItemEditando] = useState(null);
 
   // --- Efectos para Guardar Datos (sin cambios) ---
@@ -42,10 +55,14 @@ function Proveedores() {
   useEffect(() => { guardarDatos('facturasProveedores', facturas); }, [facturas]);
   useEffect(() => { guardarDatos('pagosProveedores', pagos); }, [pagos]);
 
+  // <-- ¡NUEVO! useEffect para autocalcular el vencimiento a 7 días -->
+  useEffect(() => {
+    setFechaVencimientoNuevaFactura(sumarDias(fechaNuevaFactura, 7));
+  }, [fechaNuevaFactura]);
+
   // --- Funciones de Lógica (Agregar, Eliminar, etc.) ---
   
   const handleAgregarProveedor = (e) => {
-    // ... (código igual)
     e.preventDefault();
     if (!nombreNuevoProveedor.trim()) return;
     const nuevoProveedor = { id: Date.now(), nombre: nombreNuevoProveedor };
@@ -54,7 +71,6 @@ function Proveedores() {
   };
 
   const handleCardClick = (proveedor) => {
-    // ... (código igual)
     if (proveedorSeleccionado && proveedorSeleccionado.id === proveedor.id) {
       setProveedorSeleccionado(null);
     } else {
@@ -63,7 +79,6 @@ function Proveedores() {
   };
 
   const handleEliminarProveedor = (proveedorId) => {
-    // ... (código igual)
     const confirmar = window.confirm("¿Estás seguro de eliminar este proveedor? Se borrarán TODAS sus facturas y pagos asociados.");
     if (!confirmar) return;
     setProveedores(proveedores.filter(p => p.id !== proveedorId));
@@ -74,25 +89,36 @@ function Proveedores() {
     }
   };
 
+  // <-- MODIFICADO: handleAgregarFactura (para guardar Vencimiento) -->
   const handleAgregarFactura = (e) => {
-    // ... (código igual)
     e.preventDefault();
     const monto = parseFloat(montoNuevaFactura);
     const rechazo = parseFloat(montoRechazo) || 0;
     const numero = numeroNuevaFactura.trim();
-    if (!monto || monto <= 0 || !numero || !proveedorSeleccionado) {
-        alert("Por favor, completa la fecha, N° de factura y el monto.");
+    if (!monto || monto <= 0 || !numero || !fechaVencimientoNuevaFactura || !proveedorSeleccionado) {
+        alert("Por favor, completa la fecha, vencimiento, N° de factura y el monto.");
         return;
     }
-    const nuevaFactura = { id: Date.now(), proveedorId: proveedorSeleccionado.id, fecha: fechaNuevaFactura, numero: numero, monto: monto, rechazo: rechazo };
+    const nuevaFactura = { 
+      id: Date.now(), 
+      proveedorId: proveedorSeleccionado.id, 
+      fecha: fechaNuevaFactura, 
+      fechaVencimiento: fechaVencimientoNuevaFactura, // <-- AÑADIDO
+      numero: numero, 
+      monto: monto, 
+      rechazo: rechazo 
+    };
     setFacturas([...facturas, nuevaFactura]);
     setNumeroNuevaFactura('');
     setMontoNuevaFactura('');
     setMontoRechazo('');
+    // Reseteamos fechas
+    const hoy = new Date().toISOString().split('T')[0];
+    setFechaNuevaFactura(hoy);
+    setFechaVencimientoNuevaFactura(sumarDias(hoy, 7));
   };
 
   const handleAgregarPago = (e) => {
-    // ... (código igual)
     e.preventDefault();
     const monto = parseFloat(montoNuevoPago);
     if (!monto || monto <= 0 || !proveedorSeleccionado) return;
@@ -102,13 +128,11 @@ function Proveedores() {
   };
 
   const handleEliminarFactura = (facturaId) => {
-    // ... (código igual)
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta factura? Esta acción no se puede deshacer.");
     if (!confirmar) return;
     setFacturas(facturas.filter(f => f.id !== facturaId));
   };
   
-  // <-- Función para ELIMINAR un PAGO -->
   const handleEliminarPago = (pagoId) => {
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar este pago?");
     if (!confirmar) return;
@@ -116,8 +140,7 @@ function Proveedores() {
   };
 
 
-  // --- NUEVAS FUNCIONES PARA EL MODAL DE EDICIÓN ---
-
+  // --- Funciones para el Modal de Edición ---
   const handleCerrarModales = () => {
     setModalFacturaAbierto(false);
     setModalPagoAbierto(false);
@@ -139,24 +162,21 @@ function Proveedores() {
     setItemEditando(prev => ({ ...prev, [name]: value }));
   };
 
+  // <-- MODIFICADO: handleGuardarFacturaEditada (para guardar Vencimiento) -->
   const handleGuardarFacturaEditada = (e) => {
     e.preventDefault();
-    
-    // Convertimos los números
     const monto = parseFloat(itemEditando.monto);
     const rechazo = parseFloat(itemEditando.rechazo) || 0;
     
-    // Validamos
     if (!monto || monto <= 0 || !itemEditando.numero) {
       alert("El N° de factura y el Monto no pueden estar vacíos.");
       return;
     }
     
-    // Creamos la nueva lista de facturas
     const facturasActualizadas = facturas.map(f => 
       f.id === itemEditando.id 
-        ? { ...itemEditando, monto, rechazo } // Reemplaza el item viejo por el editado
-        : f // Deja los demás como están
+        ? { ...itemEditando, monto, rechazo, fechaVencimiento: itemEditando.fechaVencimiento || null } // <-- AÑADIDO
+        : f
     );
     
     setFacturas(facturasActualizadas);
@@ -166,80 +186,105 @@ function Proveedores() {
   const handleGuardarPagoEditado = (e) => {
     e.preventDefault();
     const monto = parseFloat(itemEditando.monto);
-    
     if (!monto || monto <= 0) {
       alert("El Monto no puede estar vacío.");
       return;
     }
-    
     const pagosActualizados = pagos.map(p => 
       p.id === itemEditando.id 
         ? { ...itemEditando, monto } 
         : p
     );
-    
     setPagos(pagosActualizados);
     handleCerrarModales();
   };
   
-  // --- Funciones de Cálculo y Exportación (TU VERSIÓN INTACTA) ---
-  
+  // --- Funciones de Cálculo y Exportación ---
   const calcularSaldoPendiente = (proveedorId) => {
-    // ... (código igual)
     const totalFacturas = facturas.filter(f => f.proveedorId === proveedorId).reduce((total, f) => total + f.monto, 0);
     const totalRechazos = facturas.filter(f => f.proveedorId === proveedorId).reduce((total, f) => total + (f.rechazo || 0), 0);
     const totalPagos = pagos.filter(p => p.proveedorId === proveedorId).reduce((total, p) => total + p.monto, 0);
     return totalFacturas - totalRechazos - totalPagos;
   };
 
+  // <-- MODIFICADO: handleExportarProveedor (para incluir Vencimiento) -->
   const handleExportarProveedor = () => {
-    // ... (código igual)
-    if (!proveedorSeleccionado) return;
-    const proveedorNombre = proveedorSeleccionado.nombre;
-    const facturasData = facturas.filter(f => f.proveedorId === proveedorSeleccionado.id).map(f => ({ FECHA: new Date(f.fecha).toLocaleDateString('es-AR'), 'N°': f.numero, MONTO: f.monto, RECHAZO: f.rechazo || 0 }));
-    const pagosData = pagos.filter(p => p.proveedorId === proveedorSeleccionado.id).map(p => ({ FECHA: new Date(p.fecha).toLocaleDateString('es-AR'), MONTO: p.monto }));
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(facturasData, { header: ["FECHA", "N°", "MONTO", "RECHAZO"] });
-    XLSX.utils.sheet_add_json(ws, pagosData, { header: ["FECHA", "MONTO"], skipHeader: false, origin: "I1" });
-    const currencyFormat = '"$"#,##0.00';
-    const endFacturaRow = facturasData.length + 1;
-    const endPagoRow = pagosData.length + 1;
-    for (let i = 2; i <= endFacturaRow; i++) {
-      if (ws['C' + i]) ws['C' + i].z = currencyFormat;
-      if (ws['D' + i]) ws['D' + i].z = currencyFormat;
-    }
-    for (let i = 2; i <= endPagoRow; i++) {
-      if (ws['J' + i]) ws['J' + i].z = currencyFormat;
-    }
-    XLSX.utils.book_append_sheet(wb, ws, proveedorNombre);
-    XLSX.writeFile(wb, `Reporte_${proveedorNombre}.xlsx`);
+  if (!proveedorSeleccionado) return;
+  const proveedorNombre = proveedorSeleccionado.nombre;
+  
+  // Función helper para formatear fecha como string dd/mm/yyyy
+  const formatearFecha = (fechaString) => {
+    if (!fechaString) return '';
+    const fecha = new Date(fechaString + 'T00:00:00');
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+    const anio = fecha.getFullYear();
+    return `${dia}/${mes}/${anio}`;
   };
+  
+  // Preparamos datos de facturas
+  const facturasData = facturas.filter(f => f.proveedorId === proveedorSeleccionado.id).map(f => {
+    return { 
+      FECHA: formatearFecha(f.fecha), 
+      VENCIMIENTO: formatearFecha(f.fechaVencimiento), 
+      'N°': f.numero, 
+      MONTO: f.monto, 
+      RECHAZO: f.rechazo || 0 
+    };
+  });
+  
+  // Preparamos datos de pagos
+  const pagosData = pagos.filter(p => p.proveedorId === proveedorSeleccionado.id).map(p => {
+    return { 
+      FECHA: formatearFecha(p.fecha), 
+      MONTO: p.monto 
+    };
+  });
+  
+  const wb = XLSX.utils.book_new();
+  
+  // Añadimos facturas con las nuevas cabeceras
+  const ws = XLSX.utils.json_to_sheet(facturasData, { header: ["FECHA", "VENCIMIENTO", "N°", "MONTO", "RECHAZO"] });
+  
+  // Añadimos pagos en I1
+  XLSX.utils.sheet_add_json(ws, pagosData, { header: ["FECHA", "MONTO"], skipHeader: false, origin: "I1" });
+  
+  const currencyFormat = '"$"#,##0.00';
+  const endFacturaRow = facturasData.length + 1;
+  const endPagoRow = pagosData.length + 1;
+  
+  // Ajustamos columnas de formato (moneda)
+  for (let i = 2; i <= endFacturaRow; i++) {
+    if (ws['D' + i]) ws['D' + i].z = currencyFormat; // Col D es MONTO
+    if (ws['E' + i]) ws['E' + i].z = currencyFormat; // Col E es RECHAZO
+  }
+  for (let i = 2; i <= endPagoRow; i++) {
+    if (ws['J' + i]) ws['J' + i].z = currencyFormat; // Col J
+  }
+  
+  XLSX.utils.book_append_sheet(wb, ws, proveedorNombre);
+  XLSX.writeFile(wb, `Reporte_${proveedorNombre}.xlsx`);
+};
 
 
-  // <-- ¡NUEVO! Función de Importación Corregida (A1 / I1) -->
+  // <-- MODIFICADO: handleFileImport (para leer Vencimiento) -->
   const handleFileImport = (event) => {
     const file = event.target.files[0];
     if (!file || !proveedorSeleccionado) return;
 
-    // Función para parsear fechas "d/m/aaaa" o "dd/mm/aaaa" a "yyyy-mm-dd"
     const parsearFecha = (fechaString) => {
-      // Si ya es un objeto Date (por si 'cellDates: true' funcionó)
       if (fechaString instanceof Date) {
         return fechaString.toISOString().split('T')[0];
       }
-      
-      // Si es un string (como "9/9/2025")
       if (typeof fechaString === 'string') {
-        const partes = fechaString.split('/'); // [ "9", "9", "2025" ]
+        const partes = fechaString.split('/'); 
         if (partes.length === 3) {
           const dia = partes[0].padStart(2, '0');
           const mes = partes[1].padStart(2, '0');
           const anio = partes[2];
-          return `${anio}-${mes}-${dia}`; // "2025-09-09"
+          return `${anio}-${mes}-${dia}`;
         }
       }
-      
-      // Si es un número (formato de fecha de Excel)
       if (typeof fechaString === 'number') {
         const date = XLSX.SSF.parse_date_code(fechaString);
         const dia = String(date.d).padStart(2, '0');
@@ -247,21 +292,15 @@ function Proveedores() {
         const anio = date.y;
         return `${anio}-${mes}-${dia}`;
       }
-
-      console.warn("Formato de fecha no reconocido:", fechaString);
-      return null; // Formato inválido
+      return null;
     };
-
 
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = e.target.result;
-        // Leemos el archivo. 'cellDates: true' ayuda a convertir números a fechas.
         const wb = XLSX.read(data, { type: 'buffer', cellDates: true });
         const ws = wb.Sheets[wb.SheetNames[0]];
-
-        // Usamos AOA (Array de Arrays) para tener control total
         const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false });
 
         const nuevasFacturas = [];
@@ -271,9 +310,12 @@ function Proveedores() {
         for (let i = 1; i < aoa.length; i++) {
           const row = aoa[i];
           
-          // --- Procesar Facturas (Columnas A, B, C, D) ---
+          // --- Procesar Facturas (Columnas A, B, C, D, E) ---
           const fechaFactura = row[0]; // Col A
-          const montoFactura = row[2]; // Col C
+          const fechaVencimiento = row[1]; // Col B (¡NUEVO!)
+          const numeroFactura = row[2]; // Col C
+          const montoFactura = row[3]; // Col D
+          const rechazoFactura = row[4]; // Col E
 
           if (fechaFactura && (typeof montoFactura === 'number' || (typeof montoFactura === 'string' && !isNaN(parseFloat(montoFactura))))) {
             const fechaParseada = parsearFecha(fechaFactura);
@@ -282,9 +324,10 @@ function Proveedores() {
                 id: Date.now() + i + 'f',
                 proveedorId: proveedorSeleccionado.id,
                 fecha: fechaParseada,
-                numero: String(row[1]), // Col B
+                fechaVencimiento: parsearFecha(fechaVencimiento), // <-- AÑADIDO
+                numero: String(numeroFactura),
                 monto: parseFloat(montoFactura),
-                rechazo: parseFloat(row[3]) || 0, // Col D
+                rechazo: parseFloat(rechazoFactura) || 0,
               });
             }
           }
@@ -292,7 +335,6 @@ function Proveedores() {
           // --- Procesar Pagos (Columnas I, J) ---
           const fechaPago = row[8]; // Col I
           const montoPago = row[9]; // Col J
-
           if (fechaPago && (typeof montoPago === 'number' || (typeof montoPago === 'string' && !isNaN(parseFloat(montoPago))))) {
             const fechaParseada = parsearFecha(fechaPago);
             if (fechaParseada) {
@@ -315,7 +357,6 @@ function Proveedores() {
           setPagos(pagosActuales => [...pagosActuales, ...nuevosPagos]);
           alert("¡Datos importados con éxito!");
         }
-
       } catch (error) {
         console.error("Error al leer el archivo de Excel:", error);
         alert("Hubo un error al leer el archivo. Asegúrate de que tenga el formato A1/I1 que genera la app.");
@@ -366,14 +407,10 @@ function Proveedores() {
       {proveedorSeleccionado && (
         <div style={{marginTop: '3rem'}}>
           
-          {/* <-- MODIFICADO: Contenedor de botones de Importar/Exportar --> */}
+          {/* Contenedor de botones de Importar/Exportar (SIN CAMBIOS) */}
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem'}}>
             <h2>Detalle de: {proveedorSeleccionado.nombre}</h2>
-            
-            {/* Grupo de botones */}
             <div style={{display: 'flex', gap: '1rem'}}>
-              
-              {/* --- ¡NUEVO! Botón de Importar --- */}
               <label className="btn" style={{backgroundColor: '#0dcaf0', cursor: 'pointer'}}>
                 Importar desde Excel
                 <input 
@@ -383,7 +420,6 @@ function Proveedores() {
                   onChange={handleFileImport}
                 />
               </label>
-              
               <button className="btn" onClick={handleExportarProveedor} style={{backgroundColor: '#198754'}}>
                 Exportar a Excel
               </button>
@@ -398,23 +434,31 @@ function Proveedores() {
           </h3>
           <hr style={{margin: '2rem 0'}} />
 
-          {/* Columnas de Facturas y Pagos (sin cambios) */}
+          {/* Columnas de Facturas y Pagos */}
           <div style={{display: 'flex', flexWrap: 'wrap', gap: '2rem'}}>
             {/* --- Columna Izquierda: FACTURAS --- */}
             <div style={{flex: 1, minWidth: '300px'}}>
               <h3>Cargar Factura (Deuda)</h3>
+              
+              {/* <-- MODIFICADO: Formulario de Carga --> */}
               <form onSubmit={handleAgregarFactura} className="form-container" style={{flexDirection: 'column'}}>
+                <label>Fecha de Factura</label>
                 <input type="date" value={fechaNuevaFactura} onChange={(e) => setFechaNuevaFactura(e.target.value)} />
+                <label>Fecha de Vencimiento (auto 7 días)</label>
+                <input type="date" value={fechaVencimientoNuevaFactura} onChange={(e) => setFechaVencimientoNuevaFactura(e.target.value)} />
+                
                 <input type="text" value={numeroNuevaFactura} onChange={(e) => setNumeroNuevaFactura(e.target.value)} placeholder="N° de Factura" />
                 <input type="number" step="0.01" min="0" value={montoNuevaFactura} onChange={(e) => setMontoNuevaFactura(e.target.value)} placeholder="Monto de la factura" />
                 <input type="number" step="0.01" min="0" value={montoRechazo} onChange={(e) => setMontoRechazo(e.target.value)} placeholder="Monto Rechazo (si aplica)" />
                 <button type="submit" className="btn">Agregar Factura</button>
               </form>
               
+              {/* <-- MODIFICADO: Tabla de Facturas --> */}
               <table className="tabla-detalles">
                 <thead>
                   <tr>
                     <th>Fecha</th>
+                    <th>Vencimiento</th> {/* <-- AÑADIDO --> */}
                     <th>N° Factura</th>
                     <th>Monto</th>
                     <th>Rechazo</th>
@@ -427,7 +471,10 @@ function Proveedores() {
                     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
                     .map(factura => (
                       <tr key={factura.id}>
-                        <td>{new Date(factura.fecha).toLocaleDateString('es-AR')}</td>
+                        <td>{new Date(factura.fecha + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                        <td style={{color: 'red', fontWeight: '600'}}>
+                          {factura.fechaVencimiento ? new Date(factura.fechaVencimiento + 'T00:00:00').toLocaleDateString('es-AR') : 'N/A'}
+                        </td>
                         <td>{factura.numero}</td>
                         <td>${factura.monto.toLocaleString('es-AR')}</td>
                         <td style={{color: 'red'}}>
@@ -447,6 +494,7 @@ function Proveedores() {
             <div style={{flex: 1, minWidth: '300px'}}>
               <h3>Cargar Pago</h3>
               <form onSubmit={handleAgregarPago} className="form-container" style={{flexDirection: 'column'}}>
+                <label>Fecha de Pago</label>
                 <input type="date" value={fechaNuevoPago} onChange={(e) => setFechaNuevoPago(e.target.value)} />
                 <input type="number" step="0.01" min="0" value={montoNuevoPago} onChange={(e) => setMontoNuevoPago(e.target.value)} placeholder="Monto del pago" />
                 <button type="submit" className="btn" style={{backgroundColor: '#5cb85c'}}>Agregar Pago</button>
@@ -466,7 +514,7 @@ function Proveedores() {
                     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
                     .map(pago => (
                       <tr key={pago.id}>
-                        <td>{new Date(pago.fecha).toLocaleDateString('es-AR')}</td>
+                        <td>{new Date(pago.fecha + 'T00:00:00').toLocaleDateString('es-AR')}</td>
                         <td>${pago.monto.toLocaleString('es-AR')}</td>
                         <td style={{display: 'flex', gap: '0.5rem'}}>
                           <button onClick={() => handleAbrirModalPago(pago)} style={{padding: '0.2rem 0.5rem', fontSize: '0.8rem', cursor: 'pointer', border: '1px solid #007aff', background: '#007aff', color: 'white', borderRadius: '4px'}}> Editar </button>
@@ -485,7 +533,8 @@ function Proveedores() {
         </div>
       )}
 
-      {/* --- MODALES DE EDICIÓN (Sin cambios) --- */}
+      {/* --- MODALES DE EDICIÓN --- */}
+      {/* <-- MODIFICADO: Modal de Factura --> */}
       {modalFacturaAbierto && itemEditando && (
         <div className="modal-overlay" onClick={handleCerrarModales}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -493,6 +542,11 @@ function Proveedores() {
             <form onSubmit={handleGuardarFacturaEditada} className="form-container" style={{flexDirection: 'column'}}>
               <label>Fecha</label>
               <input type="date" name="fecha" value={itemEditando.fecha} onChange={handleEdicionChange} />
+              
+              {/* <-- AÑADIDO: Campo de Vencimiento Opcional --> */}
+              <label>Fecha Vencimiento (opcional)</label>
+              <input type="date" name="fechaVencimiento" value={itemEditando.fechaVencimiento || ''} onChange={handleEdicionChange} />
+
               <label>N° Factura</label>
               <input type="text" name="numero" value={itemEditando.numero} onChange={handleEdicionChange} placeholder="N° de Factura" />
               <label>Monto</label>
@@ -508,6 +562,7 @@ function Proveedores() {
         </div>
       )}
 
+      {/* Modal de Pago (sin cambios) */}
       {modalPagoAbierto && itemEditando && (
         <div className="modal-overlay" onClick={handleCerrarModales}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
