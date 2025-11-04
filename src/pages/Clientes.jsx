@@ -29,10 +29,10 @@ function Clientes() {
   const [deudas, setDeudas] = useState(() => cargarDatos('deudas'));
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
 
-  // Estados para formularios de "Añadir"
-  const [nombreNuevoCliente, setNombreNuevoCliente] = useState('');
-  const [montoNuevaDeuda, setMontoNuevaDeuda] = useState('');
-  const [fechaNuevaDeuda, setFechaNuevaDeuda] = useState(obtenerFechaLocal());
+  // Estados para formulario simplificado
+  const [nombreCliente, setNombreCliente] = useState('');
+  const [montoDeuda, setMontoDeuda] = useState('');
+  const [fechaDeuda, setFechaDeuda] = useState(obtenerFechaLocal());
 
   const [modalDeudaAbierto, setModalDeudaAbierto] = useState(false);
   const [itemEditando, setItemEditando] = useState(null);
@@ -47,29 +47,47 @@ function Clientes() {
     guardarDatos('deudas', deudas);
   }, [deudas]);
 
-  const handleAgregarCliente = (e) => {
+  // NUEVO: Agregar cliente + deuda de una vez
+  const handleAgregarClienteYDeuda = (e) => {
     e.preventDefault();
-    if (!nombreNuevoCliente.trim()) return;
-    const nuevoCliente = {
-      id: Date.now(),
-      nombre: nombreNuevoCliente,
-    };
-    setClientes([...clientes, nuevoCliente]);
-    setNombreNuevoCliente('');
-  };
+    if (!nombreCliente.trim()) {
+      alert("El nombre del cliente es obligatorio");
+      return;
+    }
 
-  const handleAgregarDeuda = (e) => {
-    e.preventDefault();
-    const monto = parseFloat(montoNuevaDeuda);
-    if (!monto || monto <= 0 || !clienteSeleccionado) return;
+    const monto = parseFloat(montoDeuda);
+    if (!monto || monto <= 0) {
+      alert("El monto debe ser mayor a 0");
+      return;
+    }
+
+    // Buscar si el cliente ya existe (case-insensitive)
+    let cliente = clientes.find(c => c.nombre.toLowerCase().trim() === nombreCliente.toLowerCase().trim());
+    
+    // Si no existe, crear el cliente
+    if (!cliente) {
+      cliente = {
+        id: Date.now(),
+        nombre: nombreCliente.trim(),
+      };
+      setClientes([...clientes, cliente]);
+    }
+
+    // Agregar la deuda
     const nuevaDeuda = {
-      id: Date.now(),
-      clienteId: clienteSeleccionado.id,
+      id: Date.now() + 1,
+      clienteId: cliente.id,
       monto: monto,
-      fecha: fechaNuevaDeuda,
+      fecha: fechaDeuda,
     };
     setDeudas([...deudas, nuevaDeuda]);
-    setMontoNuevaDeuda('');
+
+    // Limpiar formulario
+    setNombreCliente('');
+    setMontoDeuda('');
+    setFechaDeuda(obtenerFechaLocal());
+    
+    alert(`${cliente.nombre} agregado/actualizado con deuda de $${monto.toLocaleString('es-AR')}`);
   };
 
   const calcularTotalDeuda = (clienteId) => {
@@ -197,7 +215,6 @@ function Clientes() {
     XLSX.writeFile(wb, "Reporte_Deudas_Clientes.xlsx");
   };
 
-  // <-- NUEVA FUNCIÓN: Importar desde Excel -->
   const handleFileImport = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -236,31 +253,27 @@ function Clientes() {
         const nuevasDeudas = [];
         const clientesMap = new Map();
 
-        // Crear un mapa de clientes existentes por nombre (case-insensitive)
         clientes.forEach(c => {
           clientesMap.set(c.nombre.toLowerCase().trim(), c.id);
         });
 
-        // Iteramos desde i = 1 (fila 2 de Excel, la primera de datos)
         for (let i = 1; i < aoa.length; i++) {
           const row = aoa[i];
           
-          const nombreCliente = row[0]; // Col A: CLIENTE
-          const fechaDeuda = row[1];    // Col B: FECHA
-          const montoDeuda = row[2];    // Col C: MONTO
+          const nombreCliente = row[0];
+          const fechaDeuda = row[1];
+          const montoDeuda = row[2];
 
           if (nombreCliente && fechaDeuda && (typeof montoDeuda === 'number' || (typeof montoDeuda === 'string' && !isNaN(parseFloat(montoDeuda))))) {
             const nombreNormalizado = String(nombreCliente).toLowerCase().trim();
             let clienteId = clientesMap.get(nombreNormalizado);
 
-            // Si el cliente no existe, crearlo
             if (!clienteId) {
               clienteId = Date.now() + i;
               const nuevoCliente = {
                 id: clienteId,
                 nombre: String(nombreCliente).trim()
               };
-              // Añadir al array de clientes temporalmente
               clientesMap.set(nombreNormalizado, clienteId);
               setClientes(clientesActuales => [...clientesActuales, nuevoCliente]);
             }
@@ -298,25 +311,48 @@ function Clientes() {
 
   return (
     <div>
-      <h1>Gestión de Clientes</h1>
+      <h1>👥 Gestión de Clientes</h1>
 
-      <form onSubmit={handleAgregarCliente} className="form-container">
-        <input
-          type="text"
-          value={nombreNuevoCliente}
-          onChange={(e) => setNombreNuevoCliente(e.target.value)}
-          placeholder="Nombre del nuevo cliente"
-        />
-        <button type="submit" className="btn">Agregar Cliente</button>
-      </form>
+      {/* FORMULARIO SIMPLIFICADO */}
+      <div style={{background: '#fff', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
+        <h3 style={{marginTop: 0}}>Registrar Deuda</h3>
+        <form onSubmit={handleAgregarClienteYDeuda} style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem'}}>
+          <input
+            type="text"
+            value={nombreCliente}
+            onChange={(e) => setNombreCliente(e.target.value)}
+            placeholder="Nombre del cliente"
+            required
+          />
+          <input
+            type="date"
+            value={fechaDeuda}
+            onChange={(e) => setFechaDeuda(e.target.value)}
+            required
+          />
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={montoDeuda}
+            onChange={(e) => setMontoDeuda(e.target.value)}
+            placeholder="Monto de la deuda"
+            required
+          />
+          <button type="submit" className="btn">Agregar Cliente</button>
+        </form>
+        <p style={{fontSize: '0.85rem', color: '#666', marginTop: '0.5rem', marginBottom: 0}}>
+          💡 Si el cliente ya existe, se le sumará la deuda. Si no existe, se creará automáticamente.
+        </p>
+      </div>
 
-      {/* <-- MODIFICADO: Agregado botón de importar --> */}
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem', flexWrap: 'wrap', gap: '1rem'}}>
-        <h2>Lista de Clientes</h2>
+      {/* BOTONES DE IMPORTAR/EXPORTAR */}
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem'}}>
+        <h2>Clientes con Deudas ({clientes.length})</h2>
         
         <div style={{display: 'flex', gap: '1rem'}}>
           <label className="btn" style={{backgroundColor: '#0dcaf0', cursor: 'pointer'}}>
-            Importar desde Excel
+            Importar Excel
             <input 
               type="file" 
               hidden 
@@ -327,13 +363,14 @@ function Clientes() {
           
           {deudas.length > 0 && (
             <button className="btn" onClick={handleExportarDeudas} style={{backgroundColor: '#198754'}}>
-              Exportar Deudas a Excel
+              Exportar Excel
             </button>
           )}
         </div>
       </div>
 
-      {clientes.length === 0 && <p>Aún no hay clientes. ¡Agrega uno!</p>}
+      {/* TABLA DE CLIENTES */}
+      {clientes.length === 0 && <p style={{textAlign: 'center', padding: '2rem', color: '#999'}}>No hay clientes con deudas. Registra la primera deuda arriba.</p>}
       
       <table className="tabla-detalles" style={{width: '100%', display: clientes.length > 0 ? 'table' : 'none'}}>
         <thead>
@@ -344,109 +381,97 @@ function Clientes() {
           </tr>
         </thead>
         <tbody>
-          {clientes.map(cliente => {
-            const total = calcularTotalDeuda(cliente.id);
-            const isSelected = clienteSeleccionado && clienteSeleccionado.id === cliente.id;
-            
-            return (
-              <tr key={cliente.id} style={{backgroundColor: isSelected ? '#e6f7ff' : 'transparent'}}>
-                <td style={{fontWeight: '600'}}>{cliente.nombre}</td>
-                <td>
-                  <div className="total" style={{fontSize: '1.2rem', padding: '0.5rem', display: 'inline-block'}}>
-                    ${total.toLocaleString('es-AR')}
-                  </div>
-                </td>
-                <td className="tabla-acciones">
-                  <button 
-                    className="btn" 
-                    onClick={() => handleVerDetalle(cliente)}
-                    style={{backgroundColor: isSelected ? '#096dd9' : '#007aff', padding: '0.4rem 0.8rem', fontSize: '0.9rem'}}
-                  >
-                    {isSelected ? 'Ocultar Detalle' : 'Ver Detalle'}
-                  </button>
-                  <button 
-                    className="btn" 
-                    onClick={() => handleEliminarCliente(cliente.id)}
-                    style={{backgroundColor: '#dc3545', padding: '0.4rem 0.8rem', fontSize: '0.9rem'}}
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
+          {clientes
+            .sort((a, b) => a.nombre.localeCompare(b.nombre))
+            .map(cliente => {
+              const total = calcularTotalDeuda(cliente.id);
+              const isSelected = clienteSeleccionado && clienteSeleccionado.id === cliente.id;
+              
+              return (
+                <tr key={cliente.id} style={{backgroundColor: isSelected ? '#e6f7ff' : 'transparent'}}>
+                  <td style={{fontWeight: '600'}}>{cliente.nombre}</td>
+                  <td>
+                    <div className="total" style={{fontSize: '1.2rem', padding: '0.5rem', display: 'inline-block'}}>
+                      ${total.toLocaleString('es-AR')}
+                    </div>
+                  </td>
+                  <td className="tabla-acciones">
+                    <button 
+                      className="btn" 
+                      onClick={() => handleVerDetalle(cliente)}
+                      style={{backgroundColor: isSelected ? '#096dd9' : '#007aff', padding: '0.4rem 0.8rem', fontSize: '0.9rem'}}
+                    >
+                      {isSelected ? 'Ocultar' : 'Ver Detalle'}
+                    </button>
+                    <button 
+                      className="btn" 
+                      onClick={() => handleEliminarCliente(cliente.id)}
+                      style={{backgroundColor: '#dc3545', padding: '0.4rem 0.8rem', fontSize: '0.9rem'}}
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
         </tbody>
       </table>
 
+      {/* DETALLE DEL CLIENTE */}
       {clienteSeleccionado && (
         <div style={{marginTop: '3rem', padding: '1.5rem', background: '#fff', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)'}}>
-          <h2>Detalle de: {clienteSeleccionado.nombre}</h2>
+          <h2>Historial de Deudas: {clienteSeleccionado.nombre}</h2>
 
-          <form onSubmit={handleAgregarDeuda} className="form-container">
-            <input
-              type="date"
-              value={fechaNuevaDeuda}
-              onChange={(e) => setFechaNuevaDeuda(e.target.value)}
-            />
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={montoNuevaDeuda}
-              onChange={(e) => setMontoNuevaDeuda(e.target.value)}
-              placeholder="Monto de la deuda"
-            />
-            <button type="submit" className="btn">Agregar Deuda</button>
-          </form>
-
-          <h3>Historial de Deudas</h3>
           {deudasDelClienteSeleccionado.length === 0 ? (
             <p>Este cliente no tiene deudas registradas.</p>
           ) : (
-            <table className="tabla-detalles">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Monto</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {deudasDelClienteSeleccionado
-                  .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-                  .map(deuda => (
-                    <tr key={deuda.id}>
-                      <td>{new Date(deuda.fecha + 'T00:00:00').toLocaleDateString('es-AR')}</td>
-                      <td>${deuda.monto.toLocaleString('es-AR')}</td>
-                      <td className="tabla-acciones">
-                        <button 
-                          onClick={() => handleAbrirModalDeuda(deuda)} 
-                          className="btn-editar"
-                        >
-                          Editar
-                        </button>
-                        <button 
-                          onClick={() => handleEliminarDeuda(deuda.id)} 
-                          className="btn-eliminar"
-                        >
-                          X
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+            <>
+              <table className="tabla-detalles">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Monto</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deudasDelClienteSeleccionado
+                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+                    .map(deuda => (
+                      <tr key={deuda.id}>
+                        <td>{new Date(deuda.fecha + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                        <td>${deuda.monto.toLocaleString('es-AR')}</td>
+                        <td className="tabla-acciones">
+                          <button 
+                            onClick={() => handleAbrirModalDeuda(deuda)} 
+                            className="btn-editar"
+                          >
+                            Editar
+                          </button>
+                          <button 
+                            onClick={() => handleEliminarDeuda(deuda.id)} 
+                            className="btn-eliminar"
+                          >
+                            X
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+              
+              <h3 style={{marginTop: '1.5rem'}}>
+                Total Adeudado: 
+                <span className="total" style={{fontSize: '1.5rem', marginLeft: '1rem'}}>
+                  ${calcularTotalDeuda(clienteSeleccionado.id).toLocaleString('es-AR')}
+                </span>
+              </h3>
+            </>
           )}
-          
-          <h3>
-            Total Adeudado: 
-            <span className="total" style={{fontSize: '1.5rem', marginLeft: '1rem'}}>
-              ${calcularTotalDeuda(clienteSeleccionado.id).toLocaleString('es-AR')}
-            </span>
-          </h3>
         </div>
       )}
 
+      {/* MODAL DE EDICIÓN */}
       {modalDeudaAbierto && itemEditando && (
         <div 
           className="modal-overlay" 
