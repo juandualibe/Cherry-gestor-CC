@@ -7,6 +7,7 @@ import Navegacion from './components/Navegacion.jsx';
 import Inicio from './pages/Inicio.jsx';
 import Clientes from './pages/Clientes.jsx';
 import Proveedores from './pages/Proveedores.jsx';
+import Verduleria from './pages/Verduleria.jsx'; // <-- NUEVO
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
               <Route path="/" element={<Inicio />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/proveedores" element={<Proveedores />} />
+              <Route path="/verduleria" element={<Verduleria />} /> {/* <-- NUEVO */}
             </Routes>
           </main>
         </div>

@@ -89,6 +89,15 @@ function Navegacion() {
             <span className="nav-icon">🏢</span>
             {!isCollapsed && <span className="nav-text">Proveedores</span>}
           </NavLink>
+
+          <NavLink 
+            to="/verduleria" 
+            className={({isActive}) => isActive ? 'nav-item active' : 'nav-item'}
+            onClick={handleNavClick}
+          >
+            <span className="nav-icon">🥬</span>
+            {!isCollapsed && <span className="nav-text">Verdulería</span>}
+          </NavLink>
         </nav>
 
         <div className="sidebar-footer">
