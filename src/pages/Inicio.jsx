@@ -27,18 +27,16 @@ const calcularSaldoPendiente = (proveedorId, todasLasFacturas, todosLosPagos) =>
 const hoy = new Date();
 hoy.setHours(0, 0, 0, 0);
 
-// Ventana de 3 días para "próximas a vencer"
 const tresDiasDespues = new Date(hoy);
 tresDiasDespues.setDate(hoy.getDate() + 3);
 
-// Ventana total de 7 días
 const sieteDiasDespues = new Date(hoy);
 sieteDiasDespues.setDate(hoy.getDate() + 7);
 
 
 function Inicio() {
   const [alertasVencidas, setAlertasVencidas] = useState([]);
-  const [alertasProximasVencer, setAlertasProximasVencer] = useState([]); // <-- NUEVA
+  const [alertasProximasVencer, setAlertasProximasVencer] = useState([]);
   const [alertasPorVencer, setAlertasPorVencer] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +46,7 @@ function Inicio() {
     const pagos = cargarDatos('pagosProveedores');
     
     const alertasVencidasTemp = [];
-    const alertasProximasVencerTemp = []; // <-- NUEVA
+    const alertasProximasVencerTemp = [];
     const alertasPorVencerTemp = [];
 
     for (const proveedor of proveedores) {
@@ -61,7 +59,7 @@ function Inicio() {
       const facturasProveedor = facturas.filter(f => f.proveedorId === proveedor.id);
       
       let tieneVencidas = false;
-      let tieneProximasVencer = false; // <-- NUEVO
+      let tieneProximasVencer = false;
       let tienePorVencer = false;
 
       for (const factura of facturasProveedor) {
@@ -71,7 +69,7 @@ function Inicio() {
           if (fechaVenc < hoy) {
             tieneVencidas = true;
           } else if (fechaVenc >= hoy && fechaVenc <= tresDiasDespues) {
-            tieneProximasVencer = true; // <-- NUEVO
+            tieneProximasVencer = true;
           } else if (fechaVenc > tresDiasDespues && fechaVenc <= sieteDiasDespues) {
             tienePorVencer = true;
           }
@@ -84,7 +82,6 @@ function Inicio() {
         saldo: saldo
       };
 
-      // Prioridad: Vencidas > Próximas (0-3 días) > Por vencer (4-7 días)
       if (tieneVencidas) {
         alertasVencidasTemp.push(infoAlerta);
       } else if (tieneProximasVencer) {
@@ -104,12 +101,11 @@ function Inicio() {
   
   return (
     <div>
-      <h1>Dashboard</h1>
+      <h1>Dashboard de Almacén</h1>
       <p>Resumen rápido de las cuentas a pagar a proveedores.</p>
 
       <div style={{display: 'flex', flexWrap: 'wrap', gap: '2rem'}}>
         
-        {/* Columna de Facturas Vencidas */}
         <div style={{flex: 1, minWidth: '300px'}}>
           <h2 style={{color: '#dc3545'}}>🔴 Facturas Vencidas</h2>
           <div className="lista-container">
@@ -155,7 +151,6 @@ function Inicio() {
           </div>
         </div>
 
-        {/* Columna de Próximas a Vencer (0-3 días) */}
         <div style={{flex: 1, minWidth: '300px'}}>
           <h2 style={{color: '#ff8c00'}}>🟠 Próximas a Vencer (0-3 días)</h2>
           <div className="lista-container">
@@ -201,7 +196,6 @@ function Inicio() {
           </div>
         </div>
 
-        {/* Columna de Por Vencer (4-7 días) */}
         <div style={{flex: 1, minWidth: '300px'}}>
           <h2 style={{color: '#ffc107'}}>🟡 Por Vencer (4-7 días)</h2>
           <div className="lista-container">

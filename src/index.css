@@ -428,6 +428,7 @@ p {
   border-bottom: 1px solid var(--color-gray-200);
   color: var(--color-text-primary);
   font-size: 0.95rem;
+  vertical-align: middle; /* <-- AÑADIDO */
 }
 
 .tabla-detalles tbody tr {
@@ -442,12 +443,53 @@ p {
   border-bottom: none;
 }
 
+/* Contenedor de botones en tablas - FIX IMPORTANTE */
+.tabla-detalles td[style*="display: flex"] {
+  display: table-cell !important; /* <-- Forzar table-cell */
+}
+
 /* Botones dentro de tablas */
 .tabla-detalles button {
   padding: 0.5rem 0.875rem;
   font-size: 0.875rem;
   border-radius: var(--border-radius-sm);
   font-weight: 600;
+  cursor: pointer; /* <-- AÑADIDO */
+  pointer-events: auto; /* <-- AÑADIDO */
+  position: relative; /* <-- AÑADIDO */
+  z-index: 1; /* <-- AÑADIDO */
+  display: inline-block; /* <-- CAMBIADO de flex a inline-block */
+  margin-right: 0.5rem; /* <-- Para separación entre botones */
+}
+
+.tabla-detalles button:last-child {
+  margin-right: 0;
+}
+
+/* Celda de acciones */
+.tabla-acciones {
+  white-space: nowrap;
+}
+
+/* Botones específicos de tablas */
+.btn-editar {
+  background: #007aff !important;
+  color: white !important;
+  border: 1px solid #007aff !important;
+}
+
+.btn-editar:hover {
+  background: #0056b3 !important;
+}
+
+.btn-eliminar {
+  background: #dc3545 !important;
+  color: white !important;
+  border: 1px solid #dc3545 !important;
+}
+
+.btn-eliminar:hover {
+  background: #c82333 !important;
 }
 
 /* ========================================
@@ -712,12 +754,14 @@ p {
   justify-content: space-between;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   min-height: 70px;
+  position: relative; /* <-- AÑADIDO */
 }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
+  flex: 1; /* <-- AÑADIDO para que ocupe espacio */
 }
 
 .logo-icon {
@@ -749,10 +793,38 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative; /* <-- AÑADIDO */
+  z-index: 10; /* <-- AÑADIDO para que siempre esté encima */
 }
 
 .sidebar-toggle:hover {
   background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1); /* <-- AÑADIDO para mejor feedback visual */
+}
+
+.sidebar-toggle:active {
+  transform: scale(0.95); /* <-- AÑADIDO */
+}
+
+/* Cuando el sidebar está colapsado, centrar el botón */
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: var(--spacing-lg); /* <-- Reducir padding cuando está colapsado */
+}
+
+.sidebar.collapsed .sidebar-logo {
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+  position: absolute;
+  right: 50%;
+  transform: translateX(50%); /* <-- Centrar el botón */
+  margin-top: 4rem; /* <-- Moverlo abajo del ícono */
+}
+
+.sidebar.collapsed .sidebar-toggle:hover {
+  transform: translateX(50%) scale(1.1); /* <-- Mantener centrado al hacer hover */
 }
 
 /* Navegación del Sidebar */
@@ -916,23 +988,242 @@ p {
 }
 
 /* ========================================
+   BOTÓN HAMBURGUESA MOBILE
+   ======================================== */
+.mobile-menu-toggle {
+  display: none; /* Oculto por defecto en desktop */
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1001;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  border: none;
+  width: 50px;
+  height: 50px;
+  border-radius: var(--border-radius-md);
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  padding: 0;
+  transition: all var(--transition-base);
+}
+
+.mobile-menu-toggle:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-xl);
+}
+
+.mobile-menu-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Icono Hamburguesa animado */
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  gap: 5px;
+}
+
+.hamburger span {
+  display: block;
+  width: 24px;
+  height: 3px;
+  background: white;
+  border-radius: 2px;
+  transition: all var(--transition-base);
+}
+
+/* Animación cuando está abierto */
+.hamburger.open span:nth-child(1) {
+  transform: translateY(8px) rotate(45deg);
+}
+
+.hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.open span:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
+/* Overlay oscuro mobile */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn var(--transition-base);
+}
+
+/* ========================================
    RESPONSIVE SIDEBAR
    ======================================== */
 @media (max-width: 768px) {
-  .sidebar {
-    width: 260px;
-    transform: translateX(-100%);
+  /* Mostrar botón hamburguesa en mobile */
+  .mobile-menu-toggle {
+    display: block;
   }
-  
+
+  /* Mostrar overlay cuando el menú está abierto */
+  .mobile-overlay {
+    display: block;
+  }
+
+  /* Sidebar oculto por defecto en mobile */
+  .sidebar {
+    width: 280px;
+    transform: translateX(-100%);
+    box-shadow: none;
+  }
+
+  /* Sidebar visible cuando está abierto */
   .sidebar.mobile-open {
     transform: translateX(0);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
   }
-  
+
+  /* Main content sin margen en mobile */
   .main-wrapper {
-    margin-left: 0;
+    margin-left: 0 !important;
   }
-  
+
+  /* Page content con padding reducido */
+  .page-content {
+    padding: 5rem var(--spacing-md) var(--spacing-md);
+  }
+
+  /* Ajustes de texto en mobile */
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  /* Formularios en mobile */
+  .form-container {
+    padding: var(--spacing-lg);
+  }
+
+  .form-container input {
+    min-width: 100%;
+  }
+
+  /* Cards en mobile */
+  .lista-container {
+    grid-template-columns: 1fr;
+  }
+
+  /* Modal en mobile */
+  .modal-content {
+    width: 95%;
+    padding: var(--spacing-lg);
+  }
+
+  /* Tablas en mobile */
+  .tabla-detalles {
+    font-size: 0.875rem;
+  }
+
+  .tabla-detalles th,
+  .tabla-detalles td {
+    padding: var(--spacing-sm);
+  }
+
+  /* Botones en tablas más pequeños en mobile */
+  .btn-editar,
+  .btn-eliminar {
+    padding: 0.3rem 0.6rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* Ocultar toggle del sidebar en mobile cuando está colapsado */
+  .sidebar.mobile-open .sidebar-toggle {
+    display: block;
+  }
+}
+
+/* Tablet (768px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .sidebar {
+    width: 220px;
+  }
+
+  .main-wrapper {
+    margin-left: 220px;
+  }
+
+  .sidebar.collapsed {
+    width: 70px;
+  }
+
   .sidebar.collapsed ~ .main-wrapper {
-    margin-left: 0;
+    margin-left: 70px;
   }
+}
+
+/* ========================================
+   MEJORAS MOBILE ADICIONALES
+   ======================================== */
+@media (max-width: 768px) {
+  /* Asegurar que el contenido no quede detrás del botón */
+  body {
+    padding-top: 0;
+  }
+
+  /* Mejorar cards en mobile */
+  .card {
+    padding: var(--spacing-lg);
+  }
+
+  /* Mejorar tablas responsivas */
+  .tabla-detalles {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hacer que las acciones de tabla se vean mejor en mobile */
+  .tabla-acciones {
+    white-space: nowrap;
+  }
+
+  /* Ajustar botones en mobile */
+  .btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  /* Sidebar footer en mobile */
+  .sidebar-footer {
+    padding: var(--spacing-md);
+  }
+
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.8rem;
+  }
+
+  .user-name {
+    font-size: 0.85rem;
+  }
+
+  .user-role {
+    font-size: 0.7rem;
+  }
+}
+
+/* Prevenir scroll cuando el menú mobile está abierto */
+body.mobile-menu-open {
+  overflow: hidden;
 }
