@@ -196,6 +196,104 @@ function Clientes() {
     XLSX.utils.book_append_sheet(wb, ws, "Deudas de Clientes");
     XLSX.writeFile(wb, "Reporte_Deudas_Clientes.xlsx");
   };
+
+  // <-- NUEVA FUNCIÓN: Importar desde Excel -->
+  const handleFileImport = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const parsearFecha = (fechaString) => {
+      if (fechaString instanceof Date) {
+        return fechaString.toISOString().split('T')[0];
+      }
+      if (typeof fechaString === 'string') {
+        const partes = fechaString.split('/'); 
+        if (partes.length === 3) {
+          const dia = partes[0].padStart(2, '0');
+          const mes = partes[1].padStart(2, '0');
+          const anio = partes[2];
+          return `${anio}-${mes}-${dia}`;
+        }
+      }
+      if (typeof fechaString === 'number') {
+        const date = XLSX.SSF.parse_date_code(fechaString);
+        const dia = String(date.d).padStart(2, '0');
+        const mes = String(date.m).padStart(2, '0');
+        const anio = date.y;
+        return `${anio}-${mes}-${dia}`;
+      }
+      return null;
+    };
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target.result;
+        const wb = XLSX.read(data, { type: 'buffer', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false });
+
+        const nuevasDeudas = [];
+        const clientesMap = new Map();
+
+        // Crear un mapa de clientes existentes por nombre (case-insensitive)
+        clientes.forEach(c => {
+          clientesMap.set(c.nombre.toLowerCase().trim(), c.id);
+        });
+
+        // Iteramos desde i = 1 (fila 2 de Excel, la primera de datos)
+        for (let i = 1; i < aoa.length; i++) {
+          const row = aoa[i];
+          
+          const nombreCliente = row[0]; // Col A: CLIENTE
+          const fechaDeuda = row[1];    // Col B: FECHA
+          const montoDeuda = row[2];    // Col C: MONTO
+
+          if (nombreCliente && fechaDeuda && (typeof montoDeuda === 'number' || (typeof montoDeuda === 'string' && !isNaN(parseFloat(montoDeuda))))) {
+            const nombreNormalizado = String(nombreCliente).toLowerCase().trim();
+            let clienteId = clientesMap.get(nombreNormalizado);
+
+            // Si el cliente no existe, crearlo
+            if (!clienteId) {
+              clienteId = Date.now() + i;
+              const nuevoCliente = {
+                id: clienteId,
+                nombre: String(nombreCliente).trim()
+              };
+              // Añadir al array de clientes temporalmente
+              clientesMap.set(nombreNormalizado, clienteId);
+              setClientes(clientesActuales => [...clientesActuales, nuevoCliente]);
+            }
+
+            const fechaParseada = parsearFecha(fechaDeuda);
+            if (fechaParseada) {
+              nuevasDeudas.push({
+                id: Date.now() + i + 'd',
+                clienteId: clienteId,
+                fecha: fechaParseada,
+                monto: parseFloat(montoDeuda),
+              });
+            }
+          }
+        }
+        
+        const confirmar = window.confirm(
+          `Se encontraron ${nuevasDeudas.length} deudas. ¿Deseas importarlas?`
+        );
+        
+        if (confirmar) {
+          setDeudas(deudasActuales => [...deudasActuales, ...nuevasDeudas]);
+          alert("¡Datos importados con éxito!");
+        }
+      } catch (error) {
+        console.error("Error al leer el archivo de Excel:", error);
+        alert("Hubo un error al leer el archivo. Asegúrate de que tenga el formato correcto (CLIENTE, FECHA, MONTO).");
+      }
+    };
+    
+    event.target.value = null; 
+    reader.readAsArrayBuffer(file);
+  };
   
 
   return (
@@ -212,14 +310,27 @@ function Clientes() {
         <button type="submit" className="btn">Agregar Cliente</button>
       </form>
 
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem'}}>
+      {/* <-- MODIFICADO: Agregado botón de importar --> */}
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem', flexWrap: 'wrap', gap: '1rem'}}>
         <h2>Lista de Clientes</h2>
         
-        {deudas.length > 0 && (
-          <button className="btn" onClick={handleExportarDeudas} style={{backgroundColor: '#198754'}}>
-            Exportar Deudas a Excel
-          </button>
-        )}
+        <div style={{display: 'flex', gap: '1rem'}}>
+          <label className="btn" style={{backgroundColor: '#0dcaf0', cursor: 'pointer'}}>
+            Importar desde Excel
+            <input 
+              type="file" 
+              hidden 
+              accept=".xlsx, .xls"
+              onChange={handleFileImport}
+            />
+          </label>
+          
+          {deudas.length > 0 && (
+            <button className="btn" onClick={handleExportarDeudas} style={{backgroundColor: '#198754'}}>
+              Exportar Deudas a Excel
+            </button>
+          )}
+        </div>
       </div>
 
       {clientes.length === 0 && <p>Aún no hay clientes. ¡Agrega uno!</p>}
